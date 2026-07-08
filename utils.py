@@ -63,4 +63,49 @@ def reshape_dx(dx, f, dim):
         return dx.view(*shape)
     return dx
 
+class EarlyStopping:
+    """Stops training when val loss hasn't improved by more than min_delta
+    for `patience` consecutive epochs. Also saves the best checkpoint.
+
+    Args:
+        patience:   epochs to wait after last sufficient improvement
+        min_delta:  minimum improvement to count as 'real' (filters noise)
+        checkpoint_path: where to save the best model
+    """
+    def __init__(self, patience=30, min_delta=1e-3, checkpoint_path="spm_pino_checkpoint_best.pt"):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.checkpoint_path = checkpoint_path
+
+        self.best_loss = float("inf")
+        self.epochs_no_improve = 0
+        self.best_epoch = 0
+        self.should_stop = False
     
+    def step(self, val_loss, epoch, model, norm_stats, r):
+        """Call once per epoch with the current val loss.
+        Returns True if training should stop, False otherwise.
+        """
+        if val_loss < self.best_loss - self.min_delta:
+            self.best_loss = val_loss
+            self.best_epoch = epoch
+            self.epochs_no_improve = 0
+            torch.save({
+                "model_state_dict": model.state_dict(),
+                "norm_stats": norm_stats,
+                "r": r.cpu(),
+                "epoch": epoch,
+                "val_loss": val_loss,
+            }, self.checkpoint_path)
+            return False
+        else:
+            self.epochs_no_improve += 1
+            if self.epochs_no_improve >= self.patience:
+                self.should_stop = True
+                return True
+            return False
+    
+    def summary(self):
+        print(f"Early stopping triggered. Best val loss {self.best_loss:.4f} "
+              f"at epoch {self.best_epoch}. "
+              f"Checkpoint saved to {self.checkpoint_path}")
