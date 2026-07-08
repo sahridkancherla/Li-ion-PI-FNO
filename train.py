@@ -7,7 +7,7 @@ from data_loader import get_dataloaders
 from model import init_model, device
 from spm_constants import get_spm_const
 from physics_loss import physics_loss, pde_residual_per_timestep, temporal_causal_weights
-from utils import model_input, physical_grid
+from utils import model_input, physical_grid, EarlyStopping
 
 # Config
 file_name = "spm_data_v3.npz"
@@ -109,20 +109,21 @@ def run_epoch(loader, train=True):
 
 
 if __name__ == "__main__":
+    early_stopping = EarlyStopping(patience=40, min_delta=5e-4, checkpoint_path="spm_pino_checkpoint_v5.pt")
+
     for epoch in range (1, n_epochs + 1):
         train_loss, train_data_loss, train_physics_loss, w_min, w_max = run_epoch(train_loader, train=True)
-        test_loss, test_data_loss, test_physics_loss, _, _ = run_epoch(test_loader, train=False)
+        val_loss, val_data_loss, val_physics_loss, _, _ = run_epoch(val_loader, train=False)
 
         print(f"Epoch {epoch:3d} | "
-              f"train: total={train_loss:.4f} data={train_data_loss:.4f} physics={train_physics_loss:.4f} | "
-              f"test: total={test_loss:.4f} data={test_data_loss:.4f} physics={test_physics_loss:.4f} | "
-              f"causal_weights=[{w_min:.4f}, {w_max:.4f}]")
+          f"train: total={train_loss:.4f} data={train_data_loss:.4f} physics={train_physics_loss:.4f} | "
+          f"val: total={val_loss:.4f} data={val_data_loss:.4f} physics={val_physics_loss:.4f} | "
+          f"causal_weights=[{w_min:.4f}, {w_max:.4f}] | "
+          f"patience={early_stopping.epochs_no_improve}/{early_stopping.patience}")
 
-        delta_loss = test_loss - train_loss
+        if early_stopping.step(val_data_loss, epoch, pino, norm_stats, r):
+            early_stopping.summary()
+            break
 
-    torch.save({
-                "model_state_dict": pino.state_dict(),
-                "norm_stats": norm_stats,
-                "r": r.cpu(),
-            }, "spm_pino_checkpoint_v5.pt")
-    print("Saved checkpoint to spm_pino_checkpoint_v5.pt")
+    print(f"\nBest checkpoint: epoch {early_stopping.best_epoch}, "
+        f"val_loss={early_stopping.best_loss:.4f}")
