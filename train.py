@@ -12,10 +12,10 @@ from utils import model_input, physical_grid
 # Config
 file_name = "spm_data_v3.npz"
 n_batch = 32
-n_epochs = 100
-lr = 1e-3
+n_epochs = 200
+lr = 1.241e-3
 lambda_phys = 0.1
-gamma = 8e-3          # temporal-causality strength on the PDE residual (Wang et al. 2022)
+gamma = 3e-2          # temporal-causality strength on the PDE residual (Wang et al. 2022)
                      # gamma=0 recovers the plain unweighted PDE loss
 n_r = 32
 
@@ -25,7 +25,7 @@ norm_stats = {k: v.to(device) if torch.is_tensor(v) else v for k, v in norm_stat
 r = r.to(device)
 
 pino = init_model()
-optimiser = torch.optim.AdamW(pino.parameters(), lr=lr, weight_decay=1e-2)
+optimiser = torch.optim.AdamW(pino.parameters(), lr=lr, weight_decay=9.5e-4)
 mse = nn.MSELoss()
 
 consts = get_spm_const()
@@ -124,5 +124,5 @@ if __name__ == "__main__":
                 "model_state_dict": pino.state_dict(),
                 "norm_stats": norm_stats,
                 "r": r.cpu(),
-            }, "spm_pino_checkpoint_v4_temporal_causality.pt")
-    print("Saved checkpoint to spm_pino_checkpoint_v4_temporal_causality.pt")
+            }, "spm_pino_checkpoint_v5.pt")
+    print("Saved checkpoint to spm_pino_checkpoint_v5.pt")

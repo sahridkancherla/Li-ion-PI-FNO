@@ -8,7 +8,7 @@ from utils import model_input
 
 file_name = "spm_data_v3.npz"
 n_batch = 32
-checkpt_path = "spm_pino_checkpoint_v4_temporal_causality.pt"
+checkpt_path = "spm_pino_checkpoint_v5.pt"
 
 
 def unnormalise(x, mean, std):

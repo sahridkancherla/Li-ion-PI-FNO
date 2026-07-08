@@ -4,7 +4,7 @@ from neuralop.models import FNO
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SPMOperator(torch.nn.Module):
-    def __init__(self, n_modes_r=16, n_modes_t=16, hidden_channels=64, n_layers=4):
+    def __init__(self, n_modes_r=16, n_modes_t=16, hidden_channels=128, n_layers=2):
         super().__init__()
         self.fno = FNO(
             n_modes=(n_modes_r, n_modes_t),  
