@@ -8,7 +8,7 @@ from utils import model_input
 
 file_name = "spm_data_v3.npz"
 n_batch = 32
-checkpt_path = "spm_pino_checkpoint_v5.pt"
+checkpt_path = str(input("Enter checkpoint path:"))
 
 
 def unnormalise(x, mean, std):
