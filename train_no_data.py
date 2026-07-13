@@ -13,8 +13,7 @@ from utils import model_input, physical_grid, EarlyStopping
 file_name = "spm_data_v3.npz"
 n_batch = 32
 n_epochs = 100
-lr = 1e-3
-lambda_phys = 0.1
+lr = 1.241e-4
 gamma = 3e-2          # temporal-causality strength on the PDE residual (Wang et al. 2022)
                      # gamma=0 recovers the plain unweighted PDE loss
 n_r = 32
@@ -62,11 +61,6 @@ def run_epoch(loader, train=True):
             y_pred = pino(x) # [batch, 3, n_r, n_t]
             c_n_pred, c_p_pred, phi_p_pred = y_pred[:, 0], y_pred[:, 1], y_pred[:, 2]
 
-            # data loss:
-            loss_data = (mse(c_n_pred, c_n) +
-                         mse(c_p_pred, c_p) +
-                        mse(phi_p_pred, phi_p))
-
             # physics loss (with temporal-causality weighting on the PDE term):
             c_n_pred_phys = unnormalise(c_n_pred, norm_stats["c_n_mean"], norm_stats["c_n_std"])
             c_p_pred_phys = unnormalise(c_p_pred, norm_stats["c_p_mean"], norm_stats["c_p_std"])
@@ -91,7 +85,7 @@ def run_epoch(loader, train=True):
                 last_weight_min = diag_weights.min().item()
                 last_weight_max = diag_weights.max().item()
 
-            loss = loss_data + lambda_phys * loss_physics
+            loss = loss_physics
 
             # train:
             if train:
@@ -100,28 +94,25 @@ def run_epoch(loader, train=True):
                 optimiser.step()
 
             total_loss += loss.item()
-            total_data_loss += loss_data.item()
-            total_phys_loss += loss_physics.item()
             n_batches += 1
 
-    return (total_loss / n_batches, total_data_loss / n_batches, total_phys_loss / n_batches,
-            last_weight_min, last_weight_max)
+    return (total_loss / n_batches, last_weight_min, last_weight_max)
 
 
 if __name__ == "__main__":
-    early_stopping = EarlyStopping(patience=15, min_delta=5e-4, checkpoint_path="spm_pino_checkpoint_v6.pt")
+    early_stopping = EarlyStopping(patience=15, min_delta=5e-4, checkpoint_path="spm_pino_checkpoint_no_data.pt")
 
     for epoch in range (1, n_epochs + 1):
-        train_loss, train_data_loss, train_physics_loss, w_min, w_max = run_epoch(train_loader, train=True)
-        test_loss, test_data_loss, test_physics_loss, _, _ = run_epoch(test_loader, train=False)
+        train_loss, w_min, w_max = run_epoch(train_loader, train=True)
+        test_loss, _, _ = run_epoch(test_loader, train=False)
 
         print(f"Epoch {epoch:3d} | "
-          f"train: total={train_loss:.4f} data={train_data_loss:.4f} physics={train_physics_loss:.4f} | "
-          f"test: total={test_loss:.4f} data={test_data_loss:.4f} physics={test_physics_loss:.4f} | "
+          f"train: total={train_loss:.4f} | "
+          f"test: total={test_loss:.4f} | "
           f"causal_weights=[{w_min:.4f}, {w_max:.4f}] | "
           f"patience={early_stopping.epochs_no_improve}/{early_stopping.patience}")
 
-        if early_stopping.step(test_data_loss, epoch, pino, norm_stats, r):
+        if early_stopping.step(test_loss, epoch, pino, norm_stats, r):
             early_stopping.summary()
             break
 
